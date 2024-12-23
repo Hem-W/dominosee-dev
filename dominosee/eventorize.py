@@ -58,11 +58,11 @@ Event layer processor
 def get_events(da: xr.DataArray, threshold: float, extreme: str, 
                outname: str=None, burst: bool=False) -> xr.DataArray:
     # stack dataset if location has more than one dimension other than "time"
-    if "lat" in da.dims and "lon" in da.dims:
-        da = da.stack(location=("lat", "lon"))
+    # if "lat" in da.dims and "lon" in da.dims:
+    #     da = da.stack(location=("lat", "lon"))
     assert da.dims[0] == "time", "Time should be the first dimension."
     assert len(da.dims) == 2, "Space dimension should be only one dimension. \
-        Please flatten using utils.flatten_location"
+        Please flatten using `utils.stack_lonlat`"
     outname = "event" if outname is None else outname
     # drop na
     da = da.dropna(da.dims[1], how="all")
@@ -73,7 +73,16 @@ def get_events(da: xr.DataArray, threshold: float, extreme: str,
     return da
 
 def merge_layers(da_list: list) -> xr.Dataset:
-    ds = xr.merge(da_list)
+    ds = xr.merge(da_list, combine_attrs="drop_conflicts")
+    return ds
+
+def events_to_layer(da_list: xr.DataArray | list) -> xr.Dataset:
+    if isinstance(da_list, xr.DataArray):
+        ds = da_list.to_dataset()
+    elif isinstance(da_list, (list, tuple)):
+        ds = merge_layers(da_list)
+    else:
+        raise ValueError("da_list should be one or a list of xarray.DataArray of events")
     return ds
 
 
