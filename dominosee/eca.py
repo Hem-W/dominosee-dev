@@ -1,3 +1,4 @@
+import json
 import numpy as np
 from scipy.stats import binom
 from numba import njit, prange
@@ -5,6 +6,7 @@ import xarray as xr
 
 @njit(parallel=False)
 def eca(b1, b2, b1w, b2wr, dtype='uint16'):
+    # TODO: 拆分成precursor & trigger 两个函数；因为有时只需要一种
     KRprec = np.zeros((b1.shape[0], b2.shape[0]), dtype=dtype)  # precursor rates
     KRtrig = np.zeros((b1.shape[0], b2.shape[0]), dtype=dtype)  # triggering rates
     for j in range(b1.shape[0]):
@@ -29,7 +31,9 @@ def eca_dataset(b1: xr.DataArray, b2: xr.DataArray, b1w: xr.DataArray, b2wr: xr.
     # infer dtype based on the length of time dimension
     if dtype is None:
         dtype = np.uint8 if b1.shape[0] < 256 else np.uint16 if b1.shape[0] < 65536 else np.uint32  # Cannot use string here in numba
-    layernames = [b1.name + "_locationA", b2.name + "_locationB"]
+    # get the location name from dims
+    xdim = b1.dims[0]
+    layernames = [f"{b1.name}_{xdim}A", f"{b2.name}_{xdim}B"]
 
     # make sure all DataArray is in ("location", "time") coordinate order if not
     if b1.dims[0] != 'location':
@@ -112,6 +116,17 @@ def eca_window(b, delt=2, sym=True, tau=0):
         bwr[:, -tau:] = False
 
     return bw, bwr
+
+
+def get_eca_window(da: xr.DataArray, delt: int=2, sym: bool=True, tau: int=0) -> xr.DataArray:
+    eca_params = {'delt': delt, 'sym': sym, 'tau': tau}
+    da_prec_window, da_trig_window = xr.apply_ufunc(eca_window, da, input_core_dims=[["time"]], output_core_dims=[["time"], ["time"]], 
+                                        vectorize=True, dask="parallelized", kwargs=eca_params)
+    da_prec_window.attrs = {'long_name': 'Precursor Window', 'units': 'boolean', 'description': 'Window for precursor event identification',
+                            "eca_params": json.dumps(eca_params)}
+    da_trig_window.attrs = {'long_name': 'Trigger Window', 'units': 'boolean', 'description': 'Window for trigger event identification', 
+                            "eca_params": json.dumps(eca_params)}
+    return da_prec_window, da_trig_window
 
 
 """

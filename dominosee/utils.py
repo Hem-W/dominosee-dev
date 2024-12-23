@@ -18,6 +18,7 @@ def stack_lonlat(da: xr.DataArray, stack_dims: list=None) -> xr.DataArray:
         xr.DataArray: DataArray with the stacked space dimension
     """   
     # TODO: location may not satisfy the CF-1.6; use "cell" instead?
+    #                                            use "node" instead?
     # http://cfconventions.org/cf-conventions/v1.6.0/cf-conventions.html#appendix-cell-methods
     if stack_dims is None:
         if "lat" in da.dims and "lon" in da.dims:
