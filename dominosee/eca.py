@@ -27,12 +27,13 @@ def eca_parallel(b1, b2, b1w, b2wr, dtype='uint16'):
     return KRprec, KRtrig
 
 
-def eca_dataset(b1: xr.DataArray, b2: xr.DataArray, b1w: xr.DataArray, b2wr: xr.DataArray, dtype=None):
+def eca_dataset(b1: xr.DataArray, b2: xr.DataArray, b1w: xr.DataArray, b2wr: xr.DataArray, dtype=None, parallel=True):
+    # TODO: 修正loc A/B的命名
     # infer dtype based on the length of time dimension
     if dtype is None:
         dtype = np.uint8 if b1.shape[0] < 256 else np.uint16 if b1.shape[0] < 65536 else np.uint32  # Cannot use string here in numba
     # get the location name from dims
-    xdim = b1.dims[0]
+    xdim = np.setdiff1d(b1.dims, "time")[0]
     layernames = [f"{b1.name}_{xdim}A", f"{b2.name}_{xdim}B"]
 
     # make sure all DataArray is in ("location", "time") coordinate order if not
@@ -45,7 +46,10 @@ def eca_dataset(b1: xr.DataArray, b2: xr.DataArray, b1w: xr.DataArray, b2wr: xr.
     if b2wr.dims[0] != 'location':
         b2wr = b2wr.transpose('location', 'time')
     # calculate the ECA
-    ECRprec, ECRtrig = eca_parallel(b1.values, b2.values, b1w.values, b2wr.values, dtype=dtype)
+    if parallel:
+        ECRprec, ECRtrig = eca_parallel(b1.values, b2.values, b1w.values, b2wr.values, dtype=dtype)
+    else:
+        ECRprec, ECRtrig = eca(b1.values, b2.values, b1w.values, b2wr.values, dtype=dtype)
     # create DataArray
     coords_locA = b1.indexes['location'].rename(["lat_locA", "lon_locA"])  # 这里一定不能用b1.coords['location'] rename，因为不会作用于MultiIndex
     coords_locB = b2.indexes['location'].rename(["lat_locB", "lon_locB"])
