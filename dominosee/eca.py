@@ -136,11 +136,76 @@ def get_eca_window(da: xr.DataArray, delt: int=2, sym: bool=True, tau: int=0) ->
 
 
 """
-Significance calculation
+Confidence calculation
 """
-def get_prec_significance(kp, na, nb, TOL, T, tau):
-    # TODO: 应当强制检查na, nb的数量，当等于0时，返回1？
+def prec_confidence(kp, na, nb, TOL, T, tau):
     return binom.cdf(kp, n=nb, p=1-(1-TOL/(T-tau))**na.reshape(-1, 1)).astype(np.float32)
 
-def get_trig_significance(kt, na, nb, TOL, T, tau):
+
+def trig_confidence(kt, na, nb, TOL, T, tau):
     return binom.cdf(kt, n=na.reshape(-1, 1), p=1-(1-TOL/(T-tau))**nb).astype(np.float32)
+
+
+def get_prec_confidence(da_prec: xr.DataArray, da_layerA: xr.DataArray, da_layerB: xr.DataArray, 
+                          min_eventnum: int=2, time_period=None) -> xr.DataArray:
+    layer_locA = da_prec.dims[0].split("_")[0]
+    layer_locB = da_prec.dims[1].split("_")[0]
+
+    da_evN_locA = da_layerA.sum(dim="time").rename({"location": f"{layer_locA}_locationA"}).rename({"lat": "lat_locA", "lon": "lon_locA"})
+    da_evN_locA.indexes[f"{layer_locA}_locationA"].rename({"lat": "lat_locA", "lon": "lon_locA"}, inplace=True)
+
+    da_evN_locB = da_layerB.sum(dim="time").rename({"location": f"{layer_locB}_locationB"}).rename({"lat": "lat_locB", "lon": "lon_locB"})
+    da_evN_locB.indexes[f"{layer_locB}_locationB"].rename({"lat": "lat_locB", "lon": "lon_locB"}, inplace=True)
+
+    eca_params = json.loads(da_prec.attrs["eca_params"])
+    TOL = eca_params["delt"] * eca_params["sym"] + 1
+    tau = eca_params["tau"]  
+    T = da_layerA.sizes["time"] # examine 
+    # print(f"Calculating confidence with TOL={TOL}, tau={tau}; T={T}")
+
+    prec_sig = xr.apply_ufunc(prec_confidence, 
+                              da_prec,
+                              da_evN_locA, da_evN_locB,
+                              dask="parallelized", kwargs={"TOL": TOL, "T": T, "tau": tau}).rename("prec_sig")
+    # prec_sig = prec_sig.compute() # for debug
+    
+    if min_eventnum > 0:
+        prec_sig = prec_sig.where(da_evN_locA >= min_eventnum, 0.0)
+        prec_sig = prec_sig.where(da_evN_locB >= min_eventnum, 0.0)
+
+    prec_sig.attrs = {'long_name': 'Precursor confidence', 'units': "", 'description': 'Confidence of precursor rates (from location A to location B) in location B',
+                      "eca_params": da_prec.attrs["eca_params"]}
+    return prec_sig
+
+
+def get_trig_confidence(da_trig: xr.DataArray, da_layerA: xr.DataArray, da_layerB: xr.DataArray, 
+                          min_eventnum: int=2, time_period=None) -> xr.DataArray:
+    layer_locA = da_trig.dims[0].split("_")[0]
+    layer_locB = da_trig.dims[1].split("_")[0]
+
+    da_evN_locA = da_layerA.sum(dim="time").rename({"location": f"{layer_locA}_locationA"}).rename({"lat": "lat_locA", "lon": "lon_locA"})
+    da_evN_locA.indexes[f"{layer_locA}_locationA"].rename({"lat": "lat_locA", "lon": "lon_locA"}, inplace=True)
+
+    da_evN_locB = da_layerB.sum(dim="time").rename({"location": f"{layer_locB}_locationB"}).rename({"lat": "lat_locB", "lon": "lon_locB"})
+    da_evN_locB.indexes[f"{layer_locB}_locationB"].rename({"lat": "lat_locB", "lon": "lon_locB"}, inplace=True)
+
+    eca_params = json.loads(da_trig.attrs["eca_params"])
+    TOL = eca_params["delt"] * eca_params["sym"] + 1
+    tau = eca_params["tau"]  
+    T = da_layerA.sizes["time"] # examine 
+    # print(f"Calculating confidence with TOL={TOL}, tau={tau}; T={T}")
+
+    trig_sig = xr.apply_ufunc(trig_confidence, 
+                              da_trig,
+                              da_evN_locA, da_evN_locB,
+                              dask="parallelized", kwargs={"TOL": TOL, "T": T, "tau": tau}).rename("trig_sig")
+    # trig_sig = trig_sig.compute() # for debug
+    
+    if min_eventnum > 0:
+        trig_sig = trig_sig.where(da_evN_locA >= min_eventnum, 0.0)
+        trig_sig = trig_sig.where(da_evN_locB >= min_eventnum, 0.0)
+
+    trig_sig.attrs = {'long_name': 'Trigger confidence', 'units': "", 'description': 'Confidence of trigger rates (from location A to location B) in location A',
+                      "eca_params": da_trig.attrs["eca_params"]}
+    return trig_sig
+    
