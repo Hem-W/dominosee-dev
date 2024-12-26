@@ -139,11 +139,11 @@ def get_eca_window(da: xr.DataArray, delt: int=2, sym: bool=True, tau: int=0) ->
 Confidence calculation
 """
 def prec_confidence(kp, na, nb, TOL, T, tau):
-    return binom.cdf(kp, n=nb, p=1-(1-TOL/(T-tau))**na.reshape(-1, 1)).astype(np.float32)
+    return binom.cdf(kp, n=nb, p=1-(1-TOL/(T-tau))**na).astype(np.float32) #不需要reshape，xarray会自动broadcast
 
 
 def trig_confidence(kt, na, nb, TOL, T, tau):
-    return binom.cdf(kt, n=na.reshape(-1, 1), p=1-(1-TOL/(T-tau))**nb).astype(np.float32)
+    return binom.cdf(kt, n=na, p=1-(1-TOL/(T-tau))**nb).astype(np.float32)
 
 
 def get_prec_confidence(da_prec: xr.DataArray, da_layerA: xr.DataArray, da_layerB: xr.DataArray, 
