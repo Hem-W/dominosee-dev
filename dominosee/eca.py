@@ -55,10 +55,12 @@ def eca_dataset(b1: xr.DataArray, b2: xr.DataArray, b1w: xr.DataArray, b2wr: xr.
     coords_locB = b2.indexes['location'].rename(["lat_locB", "lon_locB"])
     ECRprec = xr.DataArray(ECRprec, coords=[coords_locA, coords_locB], dims=layernames, name="prec_evt",
                            attrs={'long_name': 'Precursor Events', 'units': 'count', 'dtype': dtype.__name__, 
-                                  'description': 'Number of precursor events (from location A to location B) in location B'})
+                                  'description': 'Number of precursor events (from location A to location B) in location B',
+                                  'eca_params': b1w.attrs["eca_params"]})
     ECRtrig = xr.DataArray(ECRtrig, coords=[coords_locA, coords_locB], dims=layernames, name="trig_evt",
                            attrs={'long_name': 'Trigger Events', 'units': 'count', 'dtype': dtype.__name__, 
-                                  'description': 'Number of trigger events (from location A to location B) in location A'})
+                                  'description': 'Number of trigger events (from location A to location B) in location A',
+                                  'eca_params': b2wr.attrs["eca_params"]})
 
     return ECRprec, ECRtrig
 
