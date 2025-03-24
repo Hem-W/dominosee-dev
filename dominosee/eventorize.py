@@ -60,16 +60,15 @@ def get_events(da: xr.DataArray, threshold: float, extreme: str,
     # stack dataset if location has more than one dimension other than "time"
     # if "lat" in da.dims and "lon" in da.dims:
     #     da = da.stack(location=("lat", "lon"))
-    assert da.dims[0] == "time", "Time should be the first dimension."
-    assert len(da.dims) == 2, "Space dimension should be only one dimension. \
-        Please flatten using `utils.stack_lonlat`"
+    # assert da.dims[0] == "time", "Time should be the first dimension."
+    # assert len(da.dims) == 2, "Space dimension should be only one dimension. \
+    #     Please flatten using `utils.stack_lonlat`"
     outname = "event" if outname is None else outname
     # drop na
-    da = da.dropna(da.dims[1], how="all")
-    da = cut_single_threshold(da, threshold, extreme, burst)
-    da = da.rename(outname)
-    da.attrs["threshold"] = threshold
-    da.attrs["extreme"] = extreme
+    # da = da.dropna(da.dims[1], how="all")
+    da = cut_single_threshold(da, threshold, extreme, burst).rename(outname)
+    da.attrs = {"threshold": threshold, "extreme": extreme, "long_name": f"{outname} events",
+                "description": f"Events with {threshold} {extreme} threshold"}
     return da
 
 def merge_layers(da_list: list) -> xr.Dataset:

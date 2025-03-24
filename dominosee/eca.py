@@ -1,9 +1,342 @@
 import json
 import numpy as np
 from scipy.stats import binom
-from numba import njit, prange
+from numba import njit, prange, vectorize, guvectorize
 import xarray as xr
 
+@guvectorize(["void(boolean[:], boolean[:], uint16[:])"], "(n),(n)->()", nopython=True)
+def _eca_precursor(b1w, b2, KRprec):
+    KRprec[0] = np.sum(b1w & b2)
+
+@guvectorize(["void(boolean[:], boolean[:], uint16[:])"], "(n),(n)->()", nopython=True)
+def _eca_trigger(b1, b2wr, KRtrig):
+    KRtrig[0] = np.sum(b1 & b2wr)
+
+@njit(parallel=True)
+def _eca_precursors_pair_njit(b1w, b2):
+    result = np.zeros((b2.shape[0], b1w.shape[0]), dtype=np.uint16)
+    m = b2.shape[0]     # 第一数组的第一维
+    l = b1w.shape[0]    # 第二数组的第一维
+    
+    for i in prange(m):
+        for j in range(l):
+            result[i, j] = np.sum(b2[i, :] & b1w[j, :])
+    return result
+
+@njit(parallel=True)
+def _eca_triggers_pair_njit(b1, b2wr):
+    result = np.zeros((b1.shape[0], b2wr.shape[0]), dtype=np.uint16)
+    m = b1.shape[0]      # 第一数组的第一维
+    l = b2wr.shape[0]    # 第二数组的第一维
+    
+    for i in range(m):
+        for j in range(l):
+            result[i, j] = np.sum(b1[i, :] & b2wr[j, :])
+    return result
+
+
+def _forward_window(time_series, delt=2, sym=True, tau=0):
+    """
+    Create a forward (precursor) window for Event Coincidence Analysis.
+    
+    Parameters
+    ----------
+    time_series : ndarray
+        1D array representing a binary event series (0s and 1s)
+    delt : int, default=2
+        Size of the ECA window
+    sym : bool, default=True
+        Whether the ECA window is symmetric
+    tau : int, default=0
+        Delay parameter for the window (must be non-negative)
+        
+    Returns
+    -------
+    ndarray
+        Binary array indicating presence of events in forward window
+        
+    Notes
+    -----
+    This function creates a window used for calculating precursors in ECA.
+    It performs a convolution operation followed by thresholding.
+    """
+    # Input validation
+    time_series = np.asarray(time_series)
+    if time_series.ndim != 1:
+        raise ValueError("time_series must be a 1D array")
+    if tau < 0:
+        raise ValueError("delay must be non-negative")
+    if delt < 0:
+        raise ValueError("delt must be non-negative")
+        
+    # Create window
+    window = np.ones((1 + 1 * sym) * delt + 1)
+    
+    # Apply window
+    if delt == 0:
+        result = time_series.copy()
+    else:
+        result = (np.convolve(time_series, window)[sym*delt:-delt] >= 0.5)
+    
+    # Apply delay
+    if tau > 0:
+        result = np.roll(result, tau)
+        result[:tau] = False
+        
+    return result
+
+def _backward_window(time_series, delt=2, sym=True, tau=0):
+    """
+    Create a backward (trigger) window for Event Coincidence Analysis.
+    
+    Parameters
+    ----------
+    time_series : ndarray
+        1D array representing a binary event series (0s and 1s)
+    delt : int, default=2
+        Size of the ECA window
+    sym : bool, default=True
+        Whether the ECA window is symmetric
+    tau : int, default=0
+        Delay parameter for the window (must be non-negative)
+        
+    Returns
+    -------
+    ndarray
+        Binary array indicating presence of events in backward window
+        
+    Notes
+    -----
+    This function creates a window used for calculating triggers in ECA.
+    If symmetric=True, it's the same as forward_window, otherwise it uses
+    a different slice of the convolution.
+    """
+    # Input validation
+    time_series = np.asarray(time_series)
+    if time_series.ndim != 1:
+        raise ValueError("time_series must be a 1D array")
+    if tau < 0:
+        raise ValueError("tau must be non-negative")
+    if delt < 0:
+        raise ValueError("delt must be non-negative")
+    
+    # If symmetric, we can reuse the forward window logic
+    if sym:
+        result = _forward_window(time_series, delt, sym, tau)
+    else:
+        # Create window
+        window = np.ones(delt + 1)
+        
+        # Apply window with different slicing
+        result = (np.convolve(time_series, window)[delt:] >= 0.5)
+    
+    # Apply delay in opposite direction for backward window
+    if tau > 0:
+        result = np.roll(result, -tau)
+        result[-tau:] = False
+        
+    return result
+
+# Keep the original function for backward compatibility
+def eca_window_legacy(b, delt=2, sym=True, tau=0):
+    """Legacy version of eca_window function for backward compatibility."""
+    return _forward_window(b, delt, sym, tau), _backward_window(b, delt, sym, tau)
+
+
+def get_eca_precursor_window(da: xr.DataArray, delt: int=2, sym: bool=True, tau: int=0) -> xr.DataArray:
+    da_precursor_window = xr.apply_ufunc(_forward_window, da, input_core_dims=[["time"]], output_core_dims=[["time"]], 
+                                        vectorize=True, dask="parallelized", kwargs={"delt": delt, "sym": sym, "tau": tau})
+    da_precursor_window.attrs = {'long_name': 'Precursor Window', 'units': '1', 'description': 'Window for precursor event identification',
+                            "eca_params": json.dumps({"delt": delt, "sym": sym, "tau": tau})}
+    return da_precursor_window
+
+
+def get_eca_trigger_window(da: xr.DataArray, delt: int=2, sym: bool=True, tau: int=0) -> xr.DataArray:
+    da_trigger_window = xr.apply_ufunc(_backward_window, da, input_core_dims=[["time"]], output_core_dims=[["time"]], 
+                                        vectorize=True, dask="parallelized", kwargs={"delt": delt, "sym": sym, "tau": tau})
+    da_trigger_window.attrs = {'long_name': 'Trigger Window', 'units': '1', 'description': 'Window for trigger event identification',
+                               "eca_params": json.dumps({"delt": delt, "sym": sym, "tau": tau})}
+    return da_trigger_window
+
+
+def get_eca_precursor(eventA_precursor_window: xr.DataArray, eventB: xr.DataArray, func="njit") -> xr.DataArray:
+    # if long_name of eventA_precursor_window is not "Precursor Window", raise ValueError
+    if eventA_precursor_window.attrs["long_name"] != "Precursor Window":
+        raise ValueError("long_name of eventA_precursor_window must be 'Precursor Window'")
+    else:
+        eca_params = eventA_precursor_window.attrs["eca_params"]
+
+    # append spatial dimension with location order A => B
+    eventB = eventB.rename({var: f"{var}B" for var in np.setdiff1d(eventB.dims, "time")})
+    spatial_dimB = np.setdiff1d(eventB.dims, "time")
+    eventA_precursor_window = eventA_precursor_window.rename({var: f"{var}A" for var in np.setdiff1d(eventA_precursor_window.dims, "time")})
+    spatial_dimA = np.setdiff1d(eventA_precursor_window.dims, "time")
+
+    if func == "njit":
+        da_precursor = xr.apply_ufunc(_eca_precursors_pair_njit, eventA_precursor_window, eventB, 
+                                      vectorize=True,
+                                      input_core_dims=[[spatial_dimA[-1], "time"], [spatial_dimB[-1], "time"]], 
+                                      output_core_dims=[[spatial_dimA[-1], spatial_dimB[-1]]],
+                                      dask="parallelized",
+                                      dask_gufunc_kwargs={"allow_rechunk": True},
+                                      output_dtypes=np.uint16,
+                                      )
+    else:
+        da_precursor = xr.apply_ufunc(_eca_precursor, eventA_precursor_window, eventB, 
+                                      vectorize=False,
+                                      input_core_dims=[["time"], ["time"]], output_core_dims=[[]],  
+                                      dask="parallelized",)
+    da_precursor.attrs = {'long_name': 'Precursor Events', 'units': 'count', 'description': 'Number of precursor events (from location A to location B) in location B',
+                          "eca_params": eca_params}
+    return da_precursor
+
+def get_eca_trigger(eventA_trigger_window: xr.DataArray, eventB: xr.DataArray, func="njit") -> xr.DataArray:
+    # if long_name of eventA_trigger_window is not "Trigger Window", raise ValueError
+    if eventA_trigger_window.attrs["long_name"] != "Trigger Window":
+        raise ValueError("long_name of eventA_trigger_window must be 'Trigger Window'")
+    else:
+        eca_params = eventA_trigger_window.attrs["eca_params"]
+
+    # append spatial dimension with location order A => B
+    eventB = eventB.rename({var: f"{var}B" for var in np.setdiff1d(eventB.dims, "time")})
+    spatial_dimB = np.setdiff1d(eventB.dims, "time")
+    eventA_trigger_window = eventA_trigger_window.rename({var: f"{var}A" for var in np.setdiff1d(eventA_trigger_window.dims, "time")})
+    spatial_dimA = np.setdiff1d(eventA_trigger_window.dims, "time") 
+
+    if func == "njit":
+        da_trigger = xr.apply_ufunc(_eca_triggers_pair_njit, eventA_trigger_window, eventB, 
+                                      vectorize=True,
+                                      input_core_dims=[[spatial_dimA[-1], "time"], [spatial_dimB[-1], "time"]], 
+                                      output_core_dims=[[spatial_dimA[-1], spatial_dimB[-1]]],
+                                      dask="parallelized",
+                                      dask_gufunc_kwargs={"allow_rechunk": True},
+                                      output_dtypes=np.uint16,
+                                      )
+    else:
+        da_trigger = xr.apply_ufunc(_eca_trigger, eventA_trigger_window, eventB, 
+                                      vectorize=False,
+                                      input_core_dims=[["time"], ["time"]], output_core_dims=[[]],  
+                                      dask="parallelized",) 
+    da_trigger.attrs = {'long_name': 'Trigger Events', 'units': 'count', 'description': 'Number of trigger events (from location A to location B) in location A',
+                        "eca_params": eca_params}
+    return da_trigger
+
+def get_eca_precursor_from_events(eventA: xr.DataArray, eventB: xr.DataArray, delt: int=2, sym: bool=True, tau: int=0,
+                                  func="njit") -> xr.DataArray:
+    """
+    Calculate precursor events from eventA (events in location A) to eventB (events in location B) based on event coincidence analysis.
+
+    Parameters
+    ----------
+    eventA : xr.DataArray
+        Binary event time series at location A
+    eventB : xr.DataArray
+        Binary event time series at location B
+    delt : int, optional
+        Length of the coincidence window, by default 2
+    sym : bool, optional
+        If True, use symmetric window, by default True
+    tau : int, optional
+        Time lag from eventA to eventB, by default 0
+    func : str, optional
+        Function to use for calculation - "njit" for numba optimized, or "guvectorize" for gufunc, by default "njit"
+
+    Returns
+    -------
+    xr.DataArray
+        Number of precursor events from location A to location B
+    """
+    # get precursor window
+    eventA_precursor_window = get_eca_precursor_window(eventA, delt, sym, tau)
+    # get precursor
+    da_precursor = get_eca_precursor(eventA_precursor_window, eventB, func)
+    return da_precursor
+
+def get_eca_trigger_from_events(eventA: xr.DataArray, eventB: xr.DataArray, delt: int=2, sym: bool=True, tau: int=0,
+                                func="njit") -> xr.DataArray:
+    """
+    Calculate trigger events from eventA (events in location A) to eventB (events in location B) based on event coincidence analysis.
+
+    Parameters
+    ----------
+    eventA : xr.DataArray
+        Binary event time series at location A
+    eventB : xr.DataArray
+        Binary event time series at location B
+    delt : int, optional
+        Length of the coincidence window, by default 2
+    sym : bool, optional
+        If True, use symmetric window, by default True
+    tau : int, optional
+        Time lag from eventA to eventB, by default 0
+    func : str, optional
+        Function to use for calculation - "njit" for numba optimized, or "guvectorize" for gufunc, by default "njit"
+    """
+    # get trigger window
+    eventA_trigger_window = get_eca_trigger_window(eventA, delt, sym, tau)
+    # get trigger
+    da_trigger = get_eca_trigger(eventA_trigger_window, eventB, func)
+    return da_trigger
+
+def get_eca_precursor_confidence(precursor: xr.DataArray, eventA: xr.DataArray, eventB: xr.DataArray, 
+                                  min_eventnum: int=2) -> xr.DataArray:
+    # get eca_params from precursor
+    eca_params = json.loads(precursor.attrs["eca_params"])
+    TOL = eca_params["delt"] * eca_params["sym"] + 1
+    tau = eca_params["tau"]
+    T = eventA.sizes["time"] # examine 
+
+    # get NA, NB
+    NA = eventA.sum(dim="time").rename({f"{var}": f"{var}A" for var in np.setdiff1d(eventA.dims, "time")})
+    NB = eventB.sum(dim="time").rename({f"{var}": f"{var}B" for var in np.setdiff1d(eventB.dims, "time")})
+    # assert NA, NB are in the coordinates of precursor
+    assert np.all(np.isin(NA.dims, precursor.dims))
+    assert np.all(np.isin(NB.dims, precursor.dims))
+
+    prec_conf = xr.apply_ufunc(prec_confidence, 
+                              precursor,
+                              NA, NB,
+                              dask="parallelized", kwargs={"TOL": TOL, "T": T, "tau": tau}).rename("prec_conf")
+    
+    if min_eventnum > 0:
+        prec_conf = prec_conf.where(NA >= min_eventnum, 0.0)
+        prec_conf = prec_conf.where(NB >= min_eventnum, 0.0)
+
+    prec_conf.attrs = {'long_name': 'Precursor confidence', 'units': "", 'description': 'Confidence of precursor rates (from location A to location B) in location B',
+                      "eca_params": precursor.attrs["eca_params"]}
+    return prec_conf
+
+
+def get_eca_trigger_confidence(trigger: xr.DataArray, eventA: xr.DataArray, eventB: xr.DataArray, 
+                               min_eventnum: int=2) -> xr.DataArray:
+    # get eca_params from trigger
+    eca_params = json.loads(trigger.attrs["eca_params"])
+    TOL = eca_params["delt"] * eca_params["sym"] + 1
+    tau = eca_params["tau"]
+    T = eventA.sizes["time"] # examine 
+    
+    # get NA, NB
+    NA = eventA.sum(dim="time").rename({f"{var}": f"{var}A" for var in np.setdiff1d(eventA.dims, "time")})
+    NB = eventB.sum(dim="time").rename({f"{var}": f"{var}B" for var in np.setdiff1d(eventB.dims, "time")})
+
+    # calculate confidence
+    trigger_conf = xr.apply_ufunc(trig_confidence, 
+                              trigger,
+                              NA, NB,
+                              dask="parallelized", kwargs={"TOL": TOL, "T": T, "tau": tau}).rename("trigger_conf")
+
+    if min_eventnum > 0:
+        trigger_conf = trigger_conf.where(NA >= min_eventnum, 0.0)
+        trigger_conf = trigger_conf.where(NB >= min_eventnum, 0.0)
+
+    trigger_conf.attrs = {'long_name': 'Trigger confidence', 'units': "", 'description': 'Confidence of trigger rates (from location A to location B) in location A',
+                         "eca_params": trigger.attrs["eca_params"]}
+    return trigger_conf
+
+
+"""
+Legacy stack-style calculation
+"""
 @njit(parallel=False)
 def eca(b1, b2, b1w, b2wr, dtype='uint16'):
     # TODO: 拆分成precursor & trigger 两个函数；因为有时只需要一种
@@ -65,26 +398,6 @@ def eca_dataset(b1: xr.DataArray, b2: xr.DataArray, b1w: xr.DataArray, b2wr: xr.
     return ECRprec, ECRtrig
 
 
-# def eca_dask(b1: xr.DataArray, b2: xr.DataArray, b1w: xr.DataArray, b2wr: xr.DataArray, dtype=None, chunksize=162):
-#     layernames = [b1.name + "_locationA", b2.name + "_locationB"]
-#     # make sure all DataArray is in ("time", "location") coordinate order if not
-#     if b1.dims[0] != 'time':
-#         b1 = b1.transpose('time', 'location')
-#     if b2.dims[0] != 'time':
-#         b2 = b2.transpose('time', 'location')
-#     if b1w.dims[0] != 'time':
-#         b1w = b1w.transpose('time', 'location')
-#     if b2wr.dims[0] != 'time':
-#         b2wr = b2wr.transpose('time', 'location')
-
-#     b1_chunk = b1.rename({"location": layernames[0], "lon": "lon1", "lat": "lat1"}).chunk({layernames[0]: 162})  # chunk size 对 graph size 几乎没有影响
-#     b2wr_chunk = b2wr.rename({"location": layernames[1], "lon": "lon2", "lat": "lat2"}).chunk({layernames[1]: 162})
-#     ECRtrig = (b1_chunk & b2wr_chunk).sum(dim="time").compute().rename("trig_evt")
-#     ECRtrig.attrs = {'long_name': 'Trigger Events', 'units': 'count', 'dtype': 'uint32', 'description': 'Number of trigger events (from location A to location B) in location A'}
-#     return ECRprec, ECRtrig
-
-
-
 def eca_window(b, delt=2, sym=True, tau=0):
     """
     b: 一维向量，表示时间序列
@@ -128,9 +441,9 @@ def get_eca_window(da: xr.DataArray, delt: int=2, sym: bool=True, tau: int=0) ->
     eca_params = {'delt': delt, 'sym': sym, 'tau': tau}
     da_prec_window, da_trig_window = xr.apply_ufunc(eca_window, da, input_core_dims=[["time"]], output_core_dims=[["time"], ["time"]], 
                                         vectorize=True, dask="parallelized", kwargs=eca_params)
-    da_prec_window.attrs = {'long_name': 'Precursor Window', 'units': 'boolean', 'description': 'Window for precursor event identification',
+    da_prec_window.attrs = {'long_name': 'Precursor Window', 'units': '1', 'description': 'Window for precursor event identification',
                             "eca_params": json.dumps(eca_params)}
-    da_trig_window.attrs = {'long_name': 'Trigger Window', 'units': 'boolean', 'description': 'Window for trigger event identification', 
+    da_trig_window.attrs = {'long_name': 'Trigger Window', 'units': '1', 'description': 'Window for trigger event identification', 
                             "eca_params": json.dumps(eca_params)}
     return da_prec_window, da_trig_window
 
