@@ -56,18 +56,18 @@ def durations_start(te, threshold=3):
 Event layer processor
 """
 def get_events(da: xr.DataArray, threshold: float, extreme: str, 
-               outname: str=None, burst: bool=False) -> xr.DataArray:
+               event_name: str=None, burst: bool=False) -> xr.DataArray:
     # stack dataset if location has more than one dimension other than "time"
     # if "lat" in da.dims and "lon" in da.dims:
     #     da = da.stack(location=("lat", "lon"))
     # assert da.dims[0] == "time", "Time should be the first dimension."
     # assert len(da.dims) == 2, "Space dimension should be only one dimension. \
     #     Please flatten using `utils.stack_lonlat`"
-    outname = "event" if outname is None else outname
+    event_name = "event" if event_name is None else event_name
     # drop na
     # da = da.dropna(da.dims[1], how="all")
-    da = cut_single_threshold(da, threshold, extreme, burst).rename(outname)
-    da.attrs = {"threshold": threshold, "extreme": extreme, "long_name": f"{outname} events",
+    da = cut_single_threshold(da, threshold, extreme, burst).rename(event_name)
+    da.attrs = {"threshold": threshold, "extreme": extreme, "long_name": f"{event_name} events",
                 "description": f"Events with {threshold} {extreme} threshold"}
     return da
 
