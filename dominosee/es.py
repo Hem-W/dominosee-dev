@@ -3,7 +3,7 @@ import pandas as pd
 from numba import njit, prange
 import xarray as xr
 
-@njit#(parallel=True)
+@njit(parallel=True)
 def _event_sync(ew, ed, ewdiff, eddiff, noepw, noepd, tm, output_dtype=np.uint8):
     """
     :param ew: 一维展开后的各点bursts序列 = nodes×noe
@@ -346,6 +346,20 @@ def get_event_sync_from_positions(positionsA: xr.DataArray, positionsB: xr.DataA
     event_countsB, _ = rename_dimensions(event_countsB, suffix='B')
 
 
+    # Determine the appropriate output dtype based on the maximum possible value
+    # (which is the length of the time dimension)
+    time_length = max(event_countsA.max().values, event_countsB.max().values)
+    
+    # Choose the smallest unsigned integer dtype that can hold the maximum value
+    if time_length <= 255:  # uint8 max
+        output_dtype = np.uint8
+    elif time_length <= 65535:  # uint16 max
+        output_dtype = np.uint16
+    elif time_length <= 4294967295:  # uint32 max
+        output_dtype = np.uint32
+    else:  # For extremely large dimensions
+        output_dtype = np.uint64
+    
     # Use xarray's apply_ufunc to compute event synchronization
     es = xr.apply_ufunc(
         _event_sync,
@@ -356,8 +370,7 @@ def get_event_sync_from_positions(positionsA: xr.DataArray, positionsB: xr.DataA
         output_core_dims=[[spatial_dimA[-1], spatial_dimB[-1]]],
         vectorize=True,
         dask='parallelized',
-        output_dtypes=[np.uint8],  # Match the return type from EvSync_2D_NB
-        kwargs={'tm': tm, 'output_dtype': np.uint8}
+        kwargs={'tm': tm, 'output_dtype': output_dtype}
     )
     
     # Add metadata to the result
@@ -365,7 +378,8 @@ def get_event_sync_from_positions(positionsA: xr.DataArray, positionsB: xr.DataA
         'long_name': 'Event Synchronization',
         'units': 'count',
         'description': 'Number of synchronized events between locations A and B',
-        'threshold': tm
+        'threshold': tm,
+        'output_dtype': str(output_dtype)
     })
     
     return es
