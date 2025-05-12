@@ -29,7 +29,7 @@ def _eca_triggers_pair_njit(b1, b2wr):
     m = b1.shape[0]      # 第一数组的第一维
     l = b2wr.shape[0]    # 第二数组的第一维
     
-    for i in range(m):
+    for i in prange(m):
         for j in range(l):
             result[i, j] = np.sum(b1[i, :] & b2wr[j, :])
     return result
