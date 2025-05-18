@@ -10,7 +10,17 @@ import os
 import glob
 import numpy as np
 import xarray as xr
-from tqdm import tqdm
+
+# Make tqdm optional
+try:
+    from tqdm import tqdm
+except ImportError:
+    # Create a simple replacement if tqdm is not available
+    def tqdm(iterable, **kwargs):
+        desc = kwargs.get('desc', '')
+        if desc:
+            print(f"{desc}...")
+        return iterable
 
 
 def process_blocks(func, *args, block_size=1000, output_dir=None, output_pattern=None, **kwargs):
@@ -146,7 +156,7 @@ def combine_blocks(input_pattern, region=None, combine_method='by_coords'):
     return ds
 
 
-def process_eca_blockwise(func, eventA, eventB, output_dir, block_size=1000, **kwargs):
+def process_eca_blockwise(func, eventA, eventB, output_dir, block_size=1000, output_pattern="eca_block_{i}_{j}.nc", **kwargs):
     """
     Process Event Coincidence Analysis in blocks for very large datasets.
     
@@ -164,6 +174,8 @@ def process_eca_blockwise(func, eventA, eventB, output_dir, block_size=1000, **k
         Directory to save block files
     block_size : int, default=1000
         Size of blocks to process
+    output_pattern : str, default="eca_block_{i}_{j}.nc"
+        Pattern for output filenames, with {i} and {j} as block indices
     **kwargs :
         Additional arguments to pass to the ECA function
         
@@ -182,6 +194,6 @@ def process_eca_blockwise(func, eventA, eventB, output_dir, block_size=1000, **k
         eventB, 
         block_size=block_size, 
         output_dir=output_dir,
-        output_pattern="eca_block_{i}_{j}.nc",
+        output_pattern=output_pattern,
         **kwargs
     ) 
