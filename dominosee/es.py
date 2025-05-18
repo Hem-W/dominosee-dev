@@ -184,6 +184,7 @@ def get_event_positions(da, reference_date=None, freq=None):
         vectorize=True,
         dask='parallelized',
         output_dtypes=[np.int32],
+        dask_gufunc_kwargs={'output_sizes': {'event': max_events}},
         kwargs={'max_count': max_events, 'time_indices': time_indices}  # Pass max_events to all function calls
     )
     
@@ -249,10 +250,10 @@ def get_event_time_differences(da_positions: xr.DataArray, event_counts: xr.Data
     return time_diffs
 
 
-def get_event_sync_from_positions(positionsA: xr.DataArray, positionsB: xr.DataArray, 
+def get_event_sync_from_positions(positionsA: xr.DataArray, positionsB: xr.DataArray, tm: int,
                                   diffsA: xr.DataArray = None, diffsB: xr.DataArray = None, 
                                   event_countsA: xr.DataArray = None, event_countsB: xr.DataArray = None,
-                                  tm: int = np.inf, parallel: bool = True) -> xr.DataArray:
+                                  parallel: bool = True) -> xr.DataArray:
     """
     Calculate Event Synchronization between two sets of event positions.
     
@@ -327,6 +328,8 @@ def get_event_sync_from_positions(positionsA: xr.DataArray, positionsB: xr.DataA
         output_core_dims=[[spatial_dimA[-1], spatial_dimB[-1]]],
         vectorize=True,
         dask='parallelized',
+        dask_gufunc_kwargs={"allow_rechunk": True},
+        output_dtypes=[output_dtype],
         kwargs={'tm': tm, 'output_dtype': output_dtype}
     )
     
