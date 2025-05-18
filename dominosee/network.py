@@ -44,3 +44,33 @@ def get_link_from_quantile(da_quant: xr.DataArray, q: float) -> xr.DataArray:
     # get link
     da_link = da_quant >= quant
     return da_link
+
+
+"""
+get link from critical values
+"""
+def get_link_from_critical_values(da_valu: xr.DataArray, critical_value: xr.DataArray, rule="greater") -> xr.DataArray:
+    """
+    Get the link from critical values DataArray
+
+    Parameters:
+    -----------
+    da_valu : xr.DataArray
+        DataArray containing the values to compare
+    critical_value : xr.DataArray
+        DataArray containing the critical values
+    rule : str, optional
+        Comparison rule, either "greater" or "greater_equal" (default: "greater")
+
+    Returns:
+    --------
+    xr.DataArray
+        Boolean DataArray where True indicates a link
+    """
+    if rule == "greater":
+        da_link = da_valu > critical_value
+    elif rule == "greater_equal":
+        da_link = da_valu >= critical_value
+    else:
+        raise ValueError("rule must be either 'greater' or 'greater_equal'")
+    return da_link
