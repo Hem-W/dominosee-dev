@@ -109,6 +109,8 @@ def _extract_event_positions(binary_series, time_indices, max_count):
     ndarray
         Event positions (time indices) with fixed output size
     """
+    # TODO: using VLType for event timing extraction if xarray supports VLType
+    
     # Initialize positions array with sentinel value
     positions = np.full(max_count, -1, dtype=np.int32)
     
