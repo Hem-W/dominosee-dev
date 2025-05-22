@@ -9,14 +9,31 @@ from dominosee.utils.dims import rename_dimensions
 # @njit(parallel=True)
 def _event_sync(ew, ed, ewdiff, eddiff, noepw, noepd, tm, output_dtype=np.uint8):
     """
-    :param ew: 一维展开后的各点bursts序列 = nodes×noe
-    :param ed: 一维展开后的各点bursts序列 = nodes×noe
-    :param ewdiff: 一维展开后的各点bursts序列的差分 = nodes×noe
-    :param eddiff: 一维展开后的各点bursts序列的差分 = nodes×noe
-    :param noepw: 各点bursts序列的列（人为指定的可能的最大值）
-    :param noepd: 各点bursts序列的列（人为指定的可能的最大值）
-    :param tm: ES阈值 = 30
-    :return: Q
+    Calculate event synchronization between two sets of events.
+    
+    Parameters
+    ----------
+    ew : array
+        Event positions (time indices) for each location A
+    ed : array
+        Event positions (time indices) for each location B
+    ewdiff : array
+        Time differences between consecutive events for each location A
+    eddiff : array
+        Time differences between consecutive events for each location B
+    noepw : array
+        Number of events per location A
+    noepd : array
+        Number of events per location B
+    tm : int
+        Maximum time interval parameter for ES
+    output_dtype : dtype, optional
+        Output data type, by default np.uint8
+    
+    Returns
+    -------
+    es : array
+        Event synchronization matrix
     """
 
     nodesA = ew.shape[0]
@@ -63,33 +80,6 @@ def _event_sync(ew, ed, ewdiff, eddiff, noepw, noepd, tm, output_dtype=np.uint8)
             es[i, :] = 0
     return es
 
-
-# def EvSync_2D_GB(ew, ed, ewdiff, eddiff, noepw, noepd, nodes, core, noc, tm, datanm, direc, th):
-#     path = '/home/climate/hmwang/PycharmProjects/StandardIndex_SPI1_temp/2es'
-#     print("batch %d running ..." % core)
-#     Q = EvSync_2D_NB(ew, ed, ewdiff, eddiff, noepw, noepd, tm)
-#     np.savez_compressed('{}/esevents_{}_glb_event{}_{}_c{}'.format(path, datanm, direc, th, core),
-#                         Q=Q, noew=noepw, noed=noepd)  # 多存变量只会大一点点
-#     return 0
-
-
-# @njit
-# def Ev_Position_NB(eb, mnoe, basedate=None):
-#     if basedate is None:
-#         basedate = np.zeros(eb.shape[1], dtype='uint16')
-#     dat = np.zeros((eb.shape[0], mnoe), dtype='uint16')
-#     for r in range(eb.shape[0]):
-#         epi = np.where(eb[r, :])[0] + basedate[np.where(eb[r, :])[0]]
-#         dat[r, :epi.size] = epi
-#     return dat
-
-
-# def ev_position_diff(eb, nob, dT):
-#     ep = Ev_Position_NB(eb, nob.max() + 1).astype('int16')  # event positions
-#     epdiff = np.diff(np.hstack((ep, np.zeros((ep.shape[0], 1), dtype=ep.dtype))), axis=1)  # 注意这里的负数超限
-#     epdiff[epdiff < 0] = dT
-#     epdiff = np.hstack((np.ones((epdiff.shape[0], 1), dtype=epdiff.dtype) * dT, epdiff))
-#     return epdiff
 
 def _extract_event_positions(binary_series, time_indices, max_count):
     """
@@ -347,96 +337,6 @@ def get_event_sync_from_positions(positionsA: xr.DataArray, positionsB: xr.DataA
     return es
 
 
-# @njit()  # parallel=True
-# def EvSync_Permu(season1, season2, tm):
-#     """
-#     Calculates triangle of Event Synchronization Matrix Q as list
-#     dat: 点A和点B事件出现的位置
-#     tlen： 时间长度（dat的长度）
-#     nodes：节点数量 = 2
-#     tm： ES的最大时间间隔参数
-#     """
-#     # tlen = length of time series
-#     # workspace (tmp event series)
-#     # dat0 = np.zeros(tlen, dtype="bool")
-#     # dat1 = np.zeros(tlen, dtype="bool")
-#     cor = np.zeros(2000)  # Null Model: 2000个样本
-#     for k in prange(2000):
-#         # print(k)
-#         dat0 = np.random.permutation(season1)  # dat[0,] 点A事件发生的位置
-#         dat1 = np.random.permutation(season2)  # dat[1,] 点B事件发生的位置
-
-#         # %% self-production
-#         ex = np.where(dat0)[0]  # 这里没有考虑场次事件的问题，因为一旦连续，事件数量会塌缩
-#         ey = np.where(dat1)[0]
-#         ex_diff = np.diff(ex)
-#         ex_diff = ex_diff.reshape(ex_diff.size, 1)
-#         ey_diff = np.diff(ey)
-#         ex_gapb = ex_diff[:-1, ]
-#         ex_gapf = ex_diff[1:, ]
-#         ey_gapb = ey_diff[:-1]
-#         ey_gapf = ey_diff[1:]
-#         exeydist = np.abs(ex[1:-1].reshape(ex[1:-1].size, 1) - ey[1:-1])
-#         tau = np.minimum(np.minimum(ex_gapb, ex_gapf), np.minimum(ey_gapb, ey_gapf)) / 2
-#         ESij = (exeydist < tau) & (exeydist < tm)
-#         cor[k] = np.sum(ESij)
-#     return cor
-
-# datanm = "spimv2"
-# lon = np.load('0data/{}_lon.npy'.format(datanm))
-# lat = np.load('0data/{}_lat.npy'.format(datanm))
-# ddate = to_datetime(np.load('0data/{}_date.npy'.format(datanm)))
-# tlen = ddate.size  # 数据总时长 = y*(365/366)
-# mnoe = 100  # 人工指定的生成事件数量的最大值，可能是取了数据长度的5% maximum number of events
-# sigs = np.array([0.1, 0.05, 0.01, 0.005, 0.001])
-# nb.config.NUMBA_DEFAULT_NUM_THREADS = 24
-
-# # ddate = ddate[(ddate.year >= ddate[0].year) & (ddate.year <= ddate[0].year + wd)]
-# # index_seasons = np.zeros(4, dtype='object')
-# # season_split = {0: [12, 1, 2], 1: [3, 4, 5],
-# #                 2: [6, 7, 8], 3: [9, 10, 11]}
-# # for j in range(0, 4):
-# #     index_seasons[j] = np.where(np.in1d(ddate.month, season_split.get(j)))[0]
-# # P1 = np.zeros((mnoe + 1, mnoe + 1), dtype='int')
-# P = np.zeros((mnoe + 1, mnoe + 1, sigs.size), dtype='int')
-
-# for tm in [2]:
-#     a = 0
-#     BaseTime = time.perf_counter()
-#     AllTime = []
-#     for i in range(3, mnoe + 1):
-#         for j in range(3, i + 1):  # j = 任意点对中点B上可能的事件数量
-#             l = ddate.size
-#             season1 = np.zeros(l, dtype="bool")
-#             season2 = np.zeros(l, dtype="bool")
-#             # index_seas = np.array(index_seasons[2], dtype='uint32')
-#             season1[:i] = 1
-#             season2[:j] = 1
-#             cor = EvSync_Permu(season1, season2, tlen, tm)
-#             # np.zeros(2000)  # Null Model: 2000个样本
-
-#             P[i, j, :] = st.scoreatpercentile(cor, 100 - sigs * 100)
-#             # th05 = st.scoreatpercentile(cor, 95)
-#             # th02 = st.scoreatpercentile(cor, 98)
-#             # th01 = st.scoreatpercentile(cor, 99)
-#             # th005 = st.scoreatpercentile(cor, 99.5)
-#             # th001 = st.scoreatpercentile(cor, 99.9)
-#             #
-#             # P1[i, j] = th05
-#             # P2[i, j] = th02
-#             # P3[i, j] = th01
-#             # P4[i, j] = th005
-#             # P5[i, j] = th001
-
-#             a += 1
-
-#         AllTime.append(time.perf_counter() - BaseTime)
-#         print(i, j, P[i, j, 0], AllTime[-1])
-#     for nsig, sig in enumerate(sigs):
-#         P0 = diagonal_mirror(P[:, :, nsig])
-#         np.save('2eca/null/esnull_{}_win{}_sig{}_evmax{}.npy'.format(datanm, tm, sig, mnoe), P0)
-
-
 """
 # Null Model for Event Synchronization
 """
@@ -621,4 +521,9 @@ def convert_null_model_for_locations(da_critical_values: xr.DataArray, da_evN_lo
         raise ValueError("sig must be specified")
     
     da_null = da_critical_values.sel(noeA=da_evN_locA, noeB=da_evN_locB, significance=sig)
+    da_null = da_null.assign_attrs({"description": "Event synchronization null model for pairs of locations",
+                                    "tau_max": da_critical_values.coords["tau_max"],
+                                    "max_events": da_critical_values.coords["max_events"],
+                                    "min_es": da_critical_values.coords["min_es"],
+                                    })
     return da_null
