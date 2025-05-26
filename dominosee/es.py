@@ -340,7 +340,6 @@ def get_event_sync_from_positions(positionsA: xr.DataArray, positionsB: xr.DataA
 """
 # Null Model for Event Synchronization
 """
-
 # @njit(parallel=True) # inline parallel by njit
 def _event_sync_null(time_indice, noeA, noeB, tm, samples=2000):
     """
@@ -413,7 +412,7 @@ def _diagonal_mirror(arr):
 
 
 def create_null_model_from_indices(da_timeIndex: xr.DataArray, tm: int, max_events: Union[int, Tuple[int, int], np.ndarray], 
-                                   significances: list=[0.05], samples: int=2000, min_es: int=None, parallel: bool=True) -> xr.DataArray:
+                                   significances: Union[float, list] = [0.05], samples: int=2000, min_es: int=None, parallel: bool=True) -> xr.DataArray:
     """
     Creates a null model for event synchronization based on actual time indices
     
@@ -426,8 +425,8 @@ def create_null_model_from_indices(da_timeIndex: xr.DataArray, tm: int, max_even
     max_events : int, tuple of two ints, or numpy.ndarray
         Maximum number of events to consider. If a single int or 1D array with one element, calculates over [max_events, max_events].
         If a tuple or 1D array with two elements, calculates over [max_events[0], max_events[1]].
-    significances : list, optional
-        List of significance levels to calculate thresholds for
+    significances : float, or list, optional
+        Significance levels to calculate thresholds for
     samples : int, optional
         Number of samples to generate, by default 2000
     min_es : int, optional
@@ -444,7 +443,7 @@ def create_null_model_from_indices(da_timeIndex: xr.DataArray, tm: int, max_even
     import scipy.stats as st
     
     # Define significance levels
-    sigs = np.array(significances)
+    sigs = np.atleast_1d(significances)
     
     # Determine the range of events to calculate
     if isinstance(max_events, int):
@@ -463,7 +462,7 @@ def create_null_model_from_indices(da_timeIndex: xr.DataArray, tm: int, max_even
     
     # Initialize results array
     critical_values = np.zeros((max_events_A + 1, max_events_B + 1, len(sigs)), dtype='int')
-    freq = xr.infer_freq(da_timeIndex.time)
+    freq = xr.infer_freq(da_timeIndex)
     if freq in ["MS", "ME"]: 
         freq = "M"
     time_indice = _DataArrayTime_to_timeindex(da_timeIndex, da_timeIndex.time.values[0], freq)
@@ -522,8 +521,8 @@ def convert_null_model_for_locations(da_critical_values: xr.DataArray, da_evN_lo
     
     da_null = da_critical_values.sel(noeA=da_evN_locA, noeB=da_evN_locB, significance=sig)
     da_null = da_null.assign_attrs({"description": "Event synchronization null model for pairs of locations",
-                                    "tau_max": da_critical_values.coords["tau_max"],
-                                    "max_events": da_critical_values.coords["max_events"],
-                                    "min_es": da_critical_values.coords["min_es"],
+                                    "tau_max": da_critical_values.attrs["tau_max"],
+                                    "max_events": da_critical_values.attrs["max_events"],
+                                    "min_es": da_critical_values.attrs["min_es"],
                                     })
     return da_null
