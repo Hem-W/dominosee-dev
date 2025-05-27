@@ -49,12 +49,18 @@ This section includes a brief tutorial on running your first DOMINO-SEE model.
     git clone https://github.com/Hem-W/dominosee-dev.git
     ```
 
-2. Install the dependencies
+2. Install the dependencies through conda
 
     ```bash
     cd dominosee-dev
     conda env create -f environment.yml
     conda activate dominosee
+    ```
+
+3. Install the package from source
+
+    ```bash
+    pip install -e .
     ```
 
 ## Contact Us
