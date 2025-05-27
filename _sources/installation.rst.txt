@@ -29,7 +29,7 @@ Since dominosee is currently in development, the recommended way to install it i
     conda env create -f environment.yml
     conda activate dominosee
     
-    # Install the package in development mode
+    # Install the package from source
     pip install -e .
 
 
