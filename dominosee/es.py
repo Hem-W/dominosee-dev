@@ -364,10 +364,7 @@ def _event_sync_null(time_indice, noeA, noeB, tm, samples=2000):
         Array of synchronization values from permutations
     """
     cor = np.zeros(samples, dtype='int')  # Null Model: 2000 samples
-    # require noeA and noeB to be at least 3
-    if noeA < 3 or noeB < 3:
-        return cor
-    if len(time_indice) < 3:
+    if noeA < 3 or noeB < 3 or len(time_indice) < 3:
         return cor
     
     for k in prange(samples):
