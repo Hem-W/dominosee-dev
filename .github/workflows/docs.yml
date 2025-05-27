@@ -31,7 +31,23 @@ jobs:
       - name: Build documentation
         run: |
           cd docs
+          # Clean previous builds
+          make clean
+          # Ensure static directories exist
+          mkdir -p _build/html/_static/css
+          mkdir -p _build/html/_static/images
+          # Copy static files
+          cp -r source/_static/css/* _build/html/_static/css/ || true
+          cp -r source/_static/images/* _build/html/_static/images/ || true
+          cp source/_static/*.png _build/html/_static/ 2>/dev/null || true
+          cp source/_static/*.svg _build/html/_static/ 2>/dev/null || true
+          # Build HTML documentation
           make html
+          # Create .nojekyll file to prevent GitHub Pages from processing with Jekyll
+          touch _build/html/.nojekyll
+          # Ensure all static files have correct permissions
+          find _build/html -type d -exec chmod 755 {} \;
+          find _build/html -type f -exec chmod 644 {} \;
           
       - name: Deploy to GitHub Pages
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'

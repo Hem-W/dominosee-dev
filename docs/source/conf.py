@@ -86,6 +86,14 @@ html_theme_options = {
 # Add any paths that contain custom static files
 html_static_path = ['_static']
 
+# Ensure static files are copied to the root of the build directory
+html_extra_path = ['_static']
+
+# Add custom CSS files
+html_css_files = [
+    'css/custom.css',
+]
+
 # Set up intersphinx mapping
 intersphinx_mapping = {
     'python': ('https://docs.python.org/3', None),
