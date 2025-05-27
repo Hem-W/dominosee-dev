@@ -12,7 +12,6 @@ dominosee requires:
 * SciPy
 * numba
 * netCDF4
-* ipykernel
 
 
 Installation

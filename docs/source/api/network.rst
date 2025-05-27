@@ -24,4 +24,4 @@ Link Creation Functions
 Example Usage
 -------------
 
-An example of constructing networks from event analysis can be found in the :doc:`ES Network Example </notebooks/es_network>` and :doc:`ECA Network Example </notebooks/eca_network>`.
+Examples of constructing networks from event analysis can be found in the :doc:`ES Network Example </notebooks/es_network>` and :doc:`ECA Network Example </notebooks/eca_network>`.

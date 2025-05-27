@@ -72,7 +72,6 @@ To get started with `dominosee`, check out the :doc:`installation` and :doc:`qui
 
    import numpy as np
    import xarray as xr
-   import dominosee as dms
    
    # Create synthetic climate data
    time = xr.cftime_range(start='2000-01-01', periods=365, freq='D')
@@ -158,7 +157,7 @@ The API Reference provides detailed documentation for all functions, classes, an
 - :doc:`api/eventorize`: Event selection
 - :doc:`api/eca`: Event Coincidence Analysis (ECA)
 - :doc:`api/es`: Event Synchronization (ES)
-- :doc:`api/network`: Network creation and analysis
+- :doc:`api/network`: Network creation
 
 
 .. Indices and tables
