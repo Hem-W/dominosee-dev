@@ -9,8 +9,6 @@ dependencies:
   - python=3.11
   - xarray
   - ipykernel
-  - cartopy
-  - matplotlib
   - cf_xarray
   - bottleneck
   - dask
