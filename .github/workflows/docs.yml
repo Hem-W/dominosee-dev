@@ -23,6 +23,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e '.[dev,docs]'  # Install package in development mode with dev and docs extras
           
+      - name: Install pandoc
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pandoc
+          
       - name: Build documentation
         run: |
           cd docs
