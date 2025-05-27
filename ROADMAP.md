@@ -4,9 +4,10 @@ This document outlines the planned future development for the DOMINO-SEE package
 
 ## Short-term Goals (Next Few Releases)
 
+- [ ] Support unsymmetric event synchronizations (ES)
 - [ ] Add basic tests to examine the correctness of calculations
 - [ ] Add advanced tests to examine the bugs in various working environments
-- [ ] Add basic documentation
+- [x] Add basic documentation
 - [ ] Add regrid utilities for remapping to Fekete grid
 - [ ] Introduce `xclim` for time period subsetting (specific months/days)
 - [ ] Introduce `xclim` for event sub-selection
