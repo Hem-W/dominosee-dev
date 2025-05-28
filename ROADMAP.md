@@ -16,7 +16,7 @@ This document outlines the planned future development for the DOMINO-SEE package
 
 - [ ] Add basic network analysis methods
 - [ ] Add advanced network analysis methods through conversion to `networkX`
-- [ ] Add advanced documentation
+  - [ ] Add property corrdinates so to distingush different layers
 - [ ] Add visualization capabilities through WHAT?
 
 ## Technical Improvements
@@ -27,8 +27,8 @@ This document outlines the planned future development for the DOMINO-SEE package
 
 ## Community Features
 
-- [ ] Create contribution guidelines
-- [ ] Add examples directory with sample scripts
+- [x] Create contribution guidelines
+- [x] Add examples directory with sample scripts
 
 ## How to Contribute
 
