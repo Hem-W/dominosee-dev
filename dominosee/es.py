@@ -114,7 +114,8 @@ def _extract_event_positions(binary_series, time_indices, max_count):
     return positions
 
 
-def _DataArrayTime_to_timeindex(dt_index: xr.DataArray, reference_date: pd.Timestamp or cftime.datetime, freq: str):
+
+def _DataArrayTime_to_timeindex(dt_index: xr.DataArray, reference_date: Union[pd.Timestamp, cftime.datetime], freq: str):
     if freq == 'D':
         time_indices = (dt_index - reference_date).dt.days.values
     elif freq == 'W':
@@ -511,10 +512,11 @@ def convert_null_model_for_locations(da_critical_values: xr.DataArray, da_evN_lo
     da_evN_locA, _ = rename_dimensions(da_evN_locA, suffix='A')
     da_evN_locB, _ = rename_dimensions(da_evN_locB, suffix='B')
     
-    if sig is None and da_critical_values.dims["significance"] == 1:
-        sig = da_critical_values.coords["significance"][0]
-    elif sig is None:
-        raise ValueError("sig must be specified")
+    if sig is None:
+        if "significance" in da_critical_values.dims and da_critical_values.sizes.get("significance", 0) == 1:
+            sig = float(da_critical_values.coords["significance"].item())
+        else:
+            raise ValueError("sig must be specified")
     
     da_null = da_critical_values.sel(noeA=da_evN_locA, noeB=da_evN_locB, significance=sig)
     da_null = da_null.assign_attrs({"description": "Event synchronization null model for pairs of locations",
