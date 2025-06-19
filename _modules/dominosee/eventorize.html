@@ -310,13 +310,17 @@
           <h1>Source code for dominosee.eventorize</h1><div class="highlight"><pre>
 <span></span><span class="c1"># encoding: utf-8</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">itertools</span><span class="w"> </span><span class="kn">import</span> <span class="n">groupby</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Union</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Tuple</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">xarray</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">xr</span>
-<span class="c1"># TODO: 事件选择当中很多任务已经在xclim中实现</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s1">&#39;get_event&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;get_event_percentile&#39;</span><span class="p">,</span>
+<span class="p">]</span>
 
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">Event selection</span>
+<span class="sd"># TODO: 事件选择当中很多任务已经在xclim中实现</span>
 <span class="sd">&quot;&quot;&quot;</span>
 <div class="viewcode-block" id="_select_burst">
 <a class="viewcode-back" href="../../api/generated/dominosee.eventorize._select_burst.html#dominosee.eventorize._select_burst">[docs]</a>
@@ -361,109 +365,6 @@
                                                      <span class="k">else</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">du</span><span class="o">-</span><span class="n">period</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">period</span><span class="p">)</span><span class="o">*</span><span class="n">du</span><span class="p">))</span> 
                                                      <span class="k">for</span> <span class="n">du</span> <span class="ow">in</span> <span class="n">du_num</span><span class="p">])</span> <span class="c1"># select first period</span>
     <span class="k">return</span> <span class="n">due</span></div>
-
-
-
-<span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">Utility functions</span>
-<span class="sd">&quot;&quot;&quot;</span>
-<div class="viewcode-block" id="cut_single_threshold">
-<a class="viewcode-back" href="../../api/generated/dominosee.eventorize.cut_single_threshold.html#dominosee.eventorize.cut_single_threshold">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">cut_single_threshold</span><span class="p">(</span><span class="n">ts</span><span class="p">,</span> <span class="n">th</span><span class="p">,</span> <span class="n">extreme</span><span class="o">=</span><span class="s2">&quot;above&quot;</span><span class="p">,</span> <span class="n">select</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">select_period</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Apply cut_single_threshold to an xarray DataArray.</span>
-<span class="sd">    </span>
-<span class="sd">    Parameters</span>
-<span class="sd">    ----------</span>
-<span class="sd">    ts : xarray.DataArray</span>
-<span class="sd">        DataArray containing data with dimension &#39;time&#39;</span>
-<span class="sd">    th : float</span>
-<span class="sd">        Threshold value</span>
-<span class="sd">    extreme : {&#39;above&#39;, &#39;below&#39;}, optional</span>
-<span class="sd">        Whether to select values above or below the threshold, by default &quot;above&quot;</span>
-<span class="sd">    select : {&#39;burst&#39;, &#39;wane&#39;, &#39;start&#39;, &#39;end&#39;}, optional</span>
-<span class="sd">        Type of event selection, by default None</span>
-<span class="sd">    select_period : int, optional</span>
-<span class="sd">        Number of time steps to select from the beginning or end of each event, by default None</span>
-<span class="sd">    </span>
-<span class="sd">    Returns</span>
-<span class="sd">    -------</span>
-<span class="sd">    xarray.DataArray</span>
-<span class="sd">        DataArray with the events in datatype bool</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">assert</span> <span class="n">extreme</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;above&quot;</span><span class="p">,</span> <span class="s2">&quot;below&quot;</span><span class="p">],</span> <span class="s2">&quot;extreme should be &#39;above&#39; or &#39;below&#39;&quot;</span>
-    <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">th</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">)),</span> <span class="s2">&quot;threshold should be a single value&quot;</span>
-
-    <span class="k">if</span> <span class="n">extreme</span> <span class="o">==</span> <span class="s2">&quot;above&quot;</span><span class="p">:</span>
-        <span class="n">te</span> <span class="o">=</span> <span class="n">ts</span> <span class="o">&gt;=</span> <span class="n">th</span>
-    <span class="k">elif</span> <span class="n">extreme</span> <span class="o">==</span> <span class="s2">&quot;below&quot;</span><span class="p">:</span>
-        <span class="n">te</span> <span class="o">=</span> <span class="n">ts</span> <span class="o">&lt;=</span> <span class="n">th</span>
-    
-    <span class="n">select_period</span> <span class="o">=</span> <span class="mi">1</span> <span class="k">if</span> <span class="n">select_period</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">select</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">select_period</span>
-    
-    <span class="k">if</span> <span class="n">select</span> <span class="o">==</span> <span class="s2">&quot;burst&quot;</span><span class="p">:</span>
-        <span class="n">te</span> <span class="o">=</span> <span class="n">_select_burst</span><span class="p">(</span><span class="n">te</span><span class="p">)</span>
-    <span class="k">elif</span> <span class="n">select</span> <span class="o">==</span> <span class="s2">&quot;wane&quot;</span><span class="p">:</span>
-        <span class="n">te</span> <span class="o">=</span> <span class="n">_select_wane</span><span class="p">(</span><span class="n">te</span><span class="p">)</span>
-    <span class="k">elif</span> <span class="n">select</span> <span class="o">==</span> <span class="s2">&quot;start&quot;</span><span class="p">:</span>
-        <span class="n">te</span> <span class="o">=</span> <span class="n">select_start_consecutive</span><span class="p">(</span><span class="n">te</span><span class="p">,</span> <span class="n">select_period</span><span class="p">)</span>
-    <span class="k">elif</span> <span class="n">select</span> <span class="o">==</span> <span class="s2">&quot;end&quot;</span><span class="p">:</span>
-        <span class="n">te</span> <span class="o">=</span> <span class="n">select_end_consecutive</span><span class="p">(</span><span class="n">te</span><span class="p">,</span> <span class="n">select_period</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">te</span></div>
-
-
-
-<span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">Exposed API to DataArray</span>
-<span class="sd">&quot;&quot;&quot;</span>
-<div class="viewcode-block" id="get_event">
-<a class="viewcode-back" href="../../api/generated/dominosee.eventorize.get_event.html#dominosee.eventorize.get_event">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">get_event</span><span class="p">(</span><span class="n">da</span><span class="p">:</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span> <span class="n">threshold</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">extreme</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> 
-              <span class="n">event_name</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">select</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">select_period</span><span class="p">:</span> <span class="nb">int</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Apply get_event to an xarray DataArray.</span>
-<span class="sd">    </span>
-<span class="sd">    Parameters</span>
-<span class="sd">    ----------</span>
-<span class="sd">    da : xarray.DataArray</span>
-<span class="sd">        DataArray containing data with dimension &#39;time&#39;</span>
-<span class="sd">    threshold : float</span>
-<span class="sd">        Threshold value</span>
-<span class="sd">    extreme : {&#39;above&#39;, &#39;below&#39;}, optional</span>
-<span class="sd">        Whether to select values above or below the threshold, by default &quot;above&quot;</span>
-<span class="sd">    event_name : str, optional</span>
-<span class="sd">        Name of the event, by default &quot;event&quot;</span>
-<span class="sd">    select : {&#39;burst&#39;, &#39;wane&#39;, &#39;start&#39;, &#39;end&#39;}, optional</span>
-<span class="sd">        Type of event selection, by default None</span>
-<span class="sd">    select_period : int, optional</span>
-<span class="sd">        Number of time steps to select from the beginning or end of each event, by default None</span>
-<span class="sd">    </span>
-<span class="sd">    Returns</span>
-<span class="sd">    -------</span>
-<span class="sd">    xarray.DataArray</span>
-<span class="sd">        DataArray with the events in datatype bool</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">event_name</span> <span class="o">=</span> <span class="s2">&quot;event&quot;</span> <span class="k">if</span> <span class="n">event_name</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">event_name</span>
-    <span class="n">da</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">apply_ufunc</span><span class="p">(</span>
-        <span class="n">cut_single_threshold</span><span class="p">,</span>
-        <span class="n">da</span><span class="p">,</span>
-        <span class="n">input_core_dims</span><span class="o">=</span><span class="p">[[</span><span class="s1">&#39;time&#39;</span><span class="p">]],</span>
-        <span class="n">output_core_dims</span><span class="o">=</span><span class="p">[[</span><span class="s1">&#39;time&#39;</span><span class="p">]],</span>
-        <span class="n">vectorize</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-        <span class="n">dask</span><span class="o">=</span><span class="s1">&#39;parallelized&#39;</span><span class="p">,</span>
-        <span class="n">kwargs</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;th&quot;</span><span class="p">:</span> <span class="n">threshold</span><span class="p">,</span> <span class="s2">&quot;extreme&quot;</span><span class="p">:</span> <span class="n">extreme</span><span class="p">,</span> <span class="s2">&quot;select&quot;</span><span class="p">:</span> <span class="n">select</span><span class="p">,</span> <span class="s2">&quot;select_period&quot;</span><span class="p">:</span> <span class="n">select_period</span><span class="p">}</span>
-    <span class="p">)</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">event_name</span><span class="p">)</span>
-
-    <span class="n">da</span><span class="o">.</span><span class="n">attrs</span> <span class="o">=</span> <span class="p">{</span>
-        <span class="s2">&quot;threshold&quot;</span><span class="p">:</span> <span class="n">threshold</span><span class="p">,</span>
-        <span class="s2">&quot;extreme&quot;</span><span class="p">:</span> <span class="n">extreme</span><span class="p">,</span>
-        <span class="s2">&quot;long_name&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">event_name</span><span class="si">}</span><span class="s2"> events&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Events with </span><span class="si">{</span><span class="n">threshold</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">extreme</span><span class="si">}</span><span class="s2"> threshold&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;event_name&quot;</span><span class="p">:</span> <span class="n">event_name</span><span class="p">,</span>
-        <span class="s2">&quot;select&quot;</span><span class="p">:</span> <span class="n">select</span><span class="p">,</span>
-        <span class="s2">&quot;select_period&quot;</span><span class="p">:</span> <span class="n">select_period</span>
-    <span class="p">}</span>
-    <span class="k">return</span> <span class="n">da</span></div>
 
 
 
@@ -530,31 +431,231 @@
     <span class="p">)</span></div>
 
 
-<span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">Event layer processor</span>
-<span class="sd">&quot;&quot;&quot;</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">merge_layers</span><span class="p">(</span><span class="n">da_list</span><span class="p">:</span> <span class="nb">list</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">xr</span><span class="o">.</span><span class="n">Dataset</span><span class="p">:</span>
-    <span class="n">ds</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">da_list</span><span class="p">,</span> <span class="n">combine_attrs</span><span class="o">=</span><span class="s2">&quot;drop_conflicts&quot;</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">ds</span>
-
-<span class="k">def</span><span class="w"> </span><span class="nf">events_to_layer</span><span class="p">(</span><span class="n">da_list</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span> <span class="n">List</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">xr</span><span class="o">.</span><span class="n">Dataset</span><span class="p">:</span>
-    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">da_list</span><span class="p">,</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">):</span>
-        <span class="n">ds</span> <span class="o">=</span> <span class="n">da_list</span><span class="o">.</span><span class="n">to_dataset</span><span class="p">()</span>
-    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">da_list</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
-        <span class="n">ds</span> <span class="o">=</span> <span class="n">merge_layers</span><span class="p">(</span><span class="n">da_list</span><span class="p">)</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;da_list should be one or a list of xarray.DataArray of events&quot;</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">ds</span>
-
 
 <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">Calculate properties</span>
+<span class="sd">Extreme definitions</span>
 <span class="sd">&quot;&quot;&quot;</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">durations</span><span class="p">(</span><span class="n">te</span><span class="p">):</span>
-    <span class="n">du_num</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([[</span><span class="nb">len</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">j</span><span class="p">))</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">groupby</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">if</span> <span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">te</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s1">&#39;uint16&#39;</span><span class="p">)</span>
-    <span class="n">due</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">te</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;uint16&#39;</span><span class="p">)</span>
-    <span class="n">due</span><span class="p">[</span><span class="n">te</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">du_num</span><span class="p">,</span> <span class="n">du_num</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">due</span>
+<div class="viewcode-block" id="cut_single_threshold">
+<a class="viewcode-back" href="../../api/generated/dominosee.eventorize.cut_single_threshold.html#dominosee.eventorize.cut_single_threshold">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">cut_single_threshold</span><span class="p">(</span><span class="n">ts</span><span class="p">,</span> <span class="n">th</span><span class="p">,</span> <span class="n">extreme</span><span class="o">=</span><span class="s2">&quot;above&quot;</span><span class="p">,</span> <span class="n">select</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">select_period</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Apply cut_single_threshold to an xarray DataArray.</span>
+<span class="sd">    </span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    ts : xarray.DataArray</span>
+<span class="sd">        DataArray containing data with dimension &#39;time&#39;</span>
+<span class="sd">    th : float</span>
+<span class="sd">        Threshold value</span>
+<span class="sd">    extreme : {&#39;above&#39;, &#39;below&#39;}, optional</span>
+<span class="sd">        Whether to select values above or below the threshold, by default &quot;above&quot;</span>
+<span class="sd">    select : {&#39;burst&#39;, &#39;wane&#39;, &#39;start&#39;, &#39;end&#39;}, optional</span>
+<span class="sd">        Type of event selection, by default None</span>
+<span class="sd">    select_period : int, optional</span>
+<span class="sd">        Number of time steps to select from the beginning or end of each event, by default None</span>
+<span class="sd">    </span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    xarray.DataArray</span>
+<span class="sd">        DataArray with the events in datatype bool</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">assert</span> <span class="n">extreme</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;above&quot;</span><span class="p">,</span> <span class="s2">&quot;below&quot;</span><span class="p">],</span> <span class="s2">&quot;extreme should be &#39;above&#39; or &#39;below&#39;&quot;</span>
+
+    <span class="k">if</span> <span class="n">extreme</span> <span class="o">==</span> <span class="s2">&quot;above&quot;</span><span class="p">:</span>
+        <span class="n">te</span> <span class="o">=</span> <span class="n">ts</span> <span class="o">&gt;=</span> <span class="n">th</span>
+    <span class="k">elif</span> <span class="n">extreme</span> <span class="o">==</span> <span class="s2">&quot;below&quot;</span><span class="p">:</span>
+        <span class="n">te</span> <span class="o">=</span> <span class="n">ts</span> <span class="o">&lt;=</span> <span class="n">th</span>
+    
+    <span class="n">select_period</span> <span class="o">=</span> <span class="mi">1</span> <span class="k">if</span> <span class="n">select_period</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">select</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">select_period</span>
+    
+    <span class="k">if</span> <span class="n">select</span> <span class="o">==</span> <span class="s2">&quot;burst&quot;</span><span class="p">:</span>
+        <span class="n">te</span> <span class="o">=</span> <span class="n">_select_burst</span><span class="p">(</span><span class="n">te</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">select</span> <span class="o">==</span> <span class="s2">&quot;wane&quot;</span><span class="p">:</span>
+        <span class="n">te</span> <span class="o">=</span> <span class="n">_select_wane</span><span class="p">(</span><span class="n">te</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">select</span> <span class="o">==</span> <span class="s2">&quot;start&quot;</span><span class="p">:</span>
+        <span class="n">te</span> <span class="o">=</span> <span class="n">select_start_consecutive</span><span class="p">(</span><span class="n">te</span><span class="p">,</span> <span class="n">select_period</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">select</span> <span class="o">==</span> <span class="s2">&quot;end&quot;</span><span class="p">:</span>
+        <span class="n">te</span> <span class="o">=</span> <span class="n">select_end_consecutive</span><span class="p">(</span><span class="n">te</span><span class="p">,</span> <span class="n">select_period</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">te</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">cut_single_percentile</span><span class="p">(</span><span class="n">ts</span><span class="p">,</span> <span class="n">q</span><span class="p">,</span> <span class="n">extreme</span><span class="o">=</span><span class="s2">&quot;above&quot;</span><span class="p">,</span> <span class="n">select</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">select_period</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Apply percentile-based threshold to a time series.</span>
+<span class="sd">    </span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    ts : numpy.ndarray or xarray.DataArray</span>
+<span class="sd">        Time series data</span>
+<span class="sd">    q : float</span>
+<span class="sd">        Percentile value (0-1)</span>
+<span class="sd">    extreme : {&#39;above&#39;, &#39;below&#39;}, optional</span>
+<span class="sd">        Whether to select values above or below the percentile threshold, by default &quot;above&quot;</span>
+<span class="sd">    select : {&#39;burst&#39;, &#39;wane&#39;, &#39;start&#39;, &#39;end&#39;}, optional</span>
+<span class="sd">        Type of event selection, by default None</span>
+<span class="sd">    select_period : int, optional</span>
+<span class="sd">        Number of time steps to select from the beginning or end of each event, by default None</span>
+<span class="sd">    </span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    numpy.ndarray or xarray.DataArray</span>
+<span class="sd">        Boolean array indicating events</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">assert</span> <span class="n">extreme</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;above&quot;</span><span class="p">,</span> <span class="s2">&quot;below&quot;</span><span class="p">],</span> <span class="s2">&quot;extreme should be &#39;above&#39; or &#39;below&#39;&quot;</span>
+    
+    <span class="c1"># Calculate threshold as percentile for this specific time series</span>
+    <span class="n">threshold</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nanquantile</span><span class="p">(</span><span class="n">ts</span><span class="p">,</span> <span class="n">q</span><span class="p">)</span>
+    
+    <span class="k">if</span> <span class="n">extreme</span> <span class="o">==</span> <span class="s2">&quot;above&quot;</span><span class="p">:</span>
+        <span class="n">te</span> <span class="o">=</span> <span class="n">ts</span> <span class="o">&gt;=</span> <span class="n">threshold</span>
+    <span class="k">elif</span> <span class="n">extreme</span> <span class="o">==</span> <span class="s2">&quot;below&quot;</span><span class="p">:</span>
+        <span class="n">te</span> <span class="o">=</span> <span class="n">ts</span> <span class="o">&lt;=</span> <span class="n">threshold</span>
+    
+    <span class="n">select_period</span> <span class="o">=</span> <span class="mi">1</span> <span class="k">if</span> <span class="n">select_period</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">select</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">select_period</span>
+    
+    <span class="k">if</span> <span class="n">select</span> <span class="o">==</span> <span class="s2">&quot;burst&quot;</span><span class="p">:</span>
+        <span class="n">te</span> <span class="o">=</span> <span class="n">_select_burst</span><span class="p">(</span><span class="n">te</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">select</span> <span class="o">==</span> <span class="s2">&quot;wane&quot;</span><span class="p">:</span>
+        <span class="n">te</span> <span class="o">=</span> <span class="n">_select_wane</span><span class="p">(</span><span class="n">te</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">select</span> <span class="o">==</span> <span class="s2">&quot;start&quot;</span><span class="p">:</span>
+        <span class="n">te</span> <span class="o">=</span> <span class="n">select_start_consecutive</span><span class="p">(</span><span class="n">te</span><span class="p">,</span> <span class="n">select_period</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">select</span> <span class="o">==</span> <span class="s2">&quot;end&quot;</span><span class="p">:</span>
+        <span class="n">te</span> <span class="o">=</span> <span class="n">select_end_consecutive</span><span class="p">(</span><span class="n">te</span><span class="p">,</span> <span class="n">select_period</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">te</span>
+
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Exposed API to DataArray</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<div class="viewcode-block" id="get_event">
+<a class="viewcode-back" href="../../api/generated/dominosee.eventorize.get_event.html#dominosee.eventorize.get_event">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_event</span><span class="p">(</span><span class="n">da</span><span class="p">:</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span> <span class="n">threshold</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">extreme</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> 
+              <span class="n">event_name</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">select</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">select_period</span><span class="p">:</span> <span class="nb">int</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Apply get_event to an xarray DataArray.</span>
+<span class="sd">    </span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    da : xarray.DataArray</span>
+<span class="sd">        DataArray containing data with dimension &#39;time&#39;</span>
+<span class="sd">    threshold : float</span>
+<span class="sd">        Threshold value</span>
+<span class="sd">    extreme : {&#39;above&#39;, &#39;below&#39;}, optional</span>
+<span class="sd">        Whether to select values above or below the threshold, by default &quot;above&quot;</span>
+<span class="sd">    event_name : str, optional</span>
+<span class="sd">        Name of the event, by default &quot;event&quot;</span>
+<span class="sd">    select : {&#39;burst&#39;, &#39;wane&#39;, &#39;start&#39;, &#39;end&#39;}, optional</span>
+<span class="sd">        Type of event selection, by default None</span>
+<span class="sd">    select_period : int, optional</span>
+<span class="sd">        Number of time steps to select from the beginning or end of each event, by default None</span>
+<span class="sd">    </span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    xarray.DataArray</span>
+<span class="sd">        DataArray with the events in datatype bool</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">event_name</span> <span class="o">=</span> <span class="s2">&quot;event&quot;</span> <span class="k">if</span> <span class="n">event_name</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">event_name</span>
+    <span class="n">da</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">apply_ufunc</span><span class="p">(</span>
+        <span class="n">cut_single_threshold</span><span class="p">,</span>
+        <span class="n">da</span><span class="p">,</span>
+        <span class="n">input_core_dims</span><span class="o">=</span><span class="p">[[</span><span class="s1">&#39;time&#39;</span><span class="p">]],</span>
+        <span class="n">output_core_dims</span><span class="o">=</span><span class="p">[[</span><span class="s1">&#39;time&#39;</span><span class="p">]],</span>
+        <span class="n">vectorize</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">dask</span><span class="o">=</span><span class="s1">&#39;parallelized&#39;</span><span class="p">,</span>
+        <span class="n">kwargs</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;th&quot;</span><span class="p">:</span> <span class="n">threshold</span><span class="p">,</span> <span class="s2">&quot;extreme&quot;</span><span class="p">:</span> <span class="n">extreme</span><span class="p">,</span> <span class="s2">&quot;select&quot;</span><span class="p">:</span> <span class="n">select</span><span class="p">,</span> <span class="s2">&quot;select_period&quot;</span><span class="p">:</span> <span class="n">select_period</span><span class="p">}</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">event_name</span><span class="p">)</span>
+
+    <span class="n">da</span><span class="o">.</span><span class="n">attrs</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;threshold&quot;</span><span class="p">:</span> <span class="n">threshold</span><span class="p">,</span>
+        <span class="s2">&quot;extreme&quot;</span><span class="p">:</span> <span class="n">extreme</span><span class="p">,</span>
+        <span class="s2">&quot;long_name&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">event_name</span><span class="si">}</span><span class="s2"> events&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Events with </span><span class="si">{</span><span class="n">threshold</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">extreme</span><span class="si">}</span><span class="s2"> threshold&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;event_name&quot;</span><span class="p">:</span> <span class="n">event_name</span><span class="p">,</span>
+        <span class="s2">&quot;select&quot;</span><span class="p">:</span> <span class="n">select</span><span class="p">,</span>
+        <span class="s2">&quot;select_period&quot;</span><span class="p">:</span> <span class="n">select_period</span>
+    <span class="p">}</span>
+    <span class="k">return</span> <span class="n">da</span></div>
+
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">get_event_percentile</span><span class="p">(</span><span class="n">da</span><span class="p">:</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span> <span class="n">percentile</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">extreme</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s2">&quot;above&quot;</span><span class="p">,</span>
+                        <span class="n">event_name</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">select</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">select_period</span><span class="p">:</span> <span class="nb">int</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Apply percentile-based event detection to an xarray DataArray. The percentile threshold</span>
+<span class="sd">    is calculated separately for each spatial point.</span>
+<span class="sd">    </span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    da : xarray.DataArray</span>
+<span class="sd">        DataArray containing data with dimension &#39;time&#39;</span>
+<span class="sd">    percentile : float</span>
+<span class="sd">        Percentile value between 0 and 1 to use as threshold</span>
+<span class="sd">    extreme : {&#39;above&#39;, &#39;below&#39;}, optional</span>
+<span class="sd">        Whether to select values above or below the percentile threshold, by default &quot;above&quot;</span>
+<span class="sd">    event_name : str, optional</span>
+<span class="sd">        Name of the event, by default &quot;event&quot;</span>
+<span class="sd">    select : {&#39;burst&#39;, &#39;wane&#39;, &#39;start&#39;, &#39;end&#39;}, optional</span>
+<span class="sd">        Type of event selection, by default None</span>
+<span class="sd">    select_period : int, optional</span>
+<span class="sd">        Number of time steps to select from the beginning or end of each event, by default None</span>
+<span class="sd">    </span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    xarray.DataArray</span>
+<span class="sd">        DataArray with the events in datatype bool</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">assert</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">percentile</span> <span class="o">&lt;=</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;percentile must be between 0 and 1&quot;</span>
+    <span class="n">event_name</span> <span class="o">=</span> <span class="s2">&quot;event&quot;</span> <span class="k">if</span> <span class="n">event_name</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">event_name</span>
+    
+    <span class="n">da</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">apply_ufunc</span><span class="p">(</span>
+        <span class="n">cut_single_percentile</span><span class="p">,</span>
+        <span class="n">da</span><span class="p">,</span>
+        <span class="n">input_core_dims</span><span class="o">=</span><span class="p">[[</span><span class="s1">&#39;time&#39;</span><span class="p">]],</span>
+        <span class="n">output_core_dims</span><span class="o">=</span><span class="p">[[</span><span class="s1">&#39;time&#39;</span><span class="p">]],</span>
+        <span class="n">vectorize</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">dask</span><span class="o">=</span><span class="s1">&#39;parallelized&#39;</span><span class="p">,</span>
+        <span class="n">kwargs</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;q&quot;</span><span class="p">:</span> <span class="n">percentile</span><span class="p">,</span> <span class="s2">&quot;extreme&quot;</span><span class="p">:</span> <span class="n">extreme</span><span class="p">,</span> <span class="s2">&quot;select&quot;</span><span class="p">:</span> <span class="n">select</span><span class="p">,</span> <span class="s2">&quot;select_period&quot;</span><span class="p">:</span> <span class="n">select_period</span><span class="p">}</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">event_name</span><span class="p">)</span>
+
+    <span class="n">da</span><span class="o">.</span><span class="n">attrs</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;percentile&quot;</span><span class="p">:</span> <span class="n">percentile</span><span class="p">,</span>
+        <span class="s2">&quot;extreme&quot;</span><span class="p">:</span> <span class="n">extreme</span><span class="p">,</span>
+        <span class="s2">&quot;long_name&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">event_name</span><span class="si">}</span><span class="s2"> events&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Events with </span><span class="si">{</span><span class="n">percentile</span><span class="si">}</span><span class="s2"> percentile </span><span class="si">{</span><span class="n">extreme</span><span class="si">}</span><span class="s2"> threshold&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;event_name&quot;</span><span class="p">:</span> <span class="n">event_name</span><span class="p">,</span>
+        <span class="s2">&quot;select&quot;</span><span class="p">:</span> <span class="n">select</span><span class="p">,</span>
+        <span class="s2">&quot;select_period&quot;</span><span class="p">:</span> <span class="n">select_period</span>
+    <span class="p">}</span>
+    <span class="k">return</span> <span class="n">da</span>
+
+
+<span class="c1"># &quot;&quot;&quot;</span>
+<span class="c1"># Event layer processor</span>
+<span class="c1"># &quot;&quot;&quot;</span>
+<span class="c1"># def merge_layers(da_list: list) -&gt; xr.Dataset:</span>
+<span class="c1">#     ds = xr.merge(da_list, combine_attrs=&quot;drop_conflicts&quot;)</span>
+<span class="c1">#     return ds</span>
+
+<span class="c1"># def events_to_layer(da_list: Union[xr.DataArray, List]) -&gt; xr.Dataset:</span>
+<span class="c1">#     if isinstance(da_list, xr.DataArray):</span>
+<span class="c1">#         ds = da_list.to_dataset()</span>
+<span class="c1">#     elif isinstance(da_list, (list, tuple)):</span>
+<span class="c1">#         ds = merge_layers(da_list)</span>
+<span class="c1">#     else:</span>
+<span class="c1">#         raise ValueError(&quot;da_list should be one or a list of xarray.DataArray of events&quot;)</span>
+<span class="c1">#     return ds</span>
+
+
+<span class="c1"># &quot;&quot;&quot;</span>
+<span class="c1"># Calculate properties</span>
+<span class="c1"># &quot;&quot;&quot;</span>
+<span class="c1"># def durations(te):</span>
+<span class="c1">#     du_num = np.concatenate([[len(list(j)) for i, j in groupby(x) if i] for x in te]).astype(&#39;uint16&#39;)</span>
+<span class="c1">#     due = np.zeros_like(te, dtype=&#39;uint16&#39;)</span>
+<span class="c1">#     due[te] = np.repeat(du_num, du_num)</span>
+<span class="c1">#     return due</span>
 
 
 <span class="c1"># &quot;&quot;&quot;</span>
