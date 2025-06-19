@@ -61,7 +61,21 @@ homepage = "https://github.com/Hem-W/dominosee-dev"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["dominosee*"]
-exclude = ["tests*"]
+exclude = ["tests.*"]
+
+[tool.setuptools.package-data]
+"tests.data" = ["test_*.nc"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::UserWarning"
+]
+
 
 [tool.black]
 line-length = 88
